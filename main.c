@@ -26,12 +26,17 @@ typedef enum {
 	DOT,
 
 	// operators
-	ASSIGNMENT,
-	EQUALS,
-	MINUS,
-	PLUS,
-	STAR,
-	SLASH,
+	OP_ASSIGNMENT,
+	OP_EQUALS,
+	OP_MINUS,
+	OP_PLUS,
+	OP_STAR,
+	OP_SLASH,
+	OP_LESS_EQUAL, 
+	OP_GREATER_EQUAL, 
+	OP_LESS, 
+	OP_GREATER, 
+	OP_DIFFERENT, 
 
 	IDENTIFIER,
 
@@ -65,12 +70,17 @@ char* pretty_tokens[] = {
 	[DOT] = ".", 
 
 	// Operators
-	[ASSIGNMENT] = "Assignment", 
-	[EQUALS] = "Equals", 
-	[MINUS] = "Minus", 
-	[PLUS] = "Plus", 
-	[STAR] = "Star", 
-	[SLASH] = "Slash", 
+	[OP_ASSIGNMENT] = "Assignment", 
+	[OP_EQUALS] = "Equals", 
+	[OP_MINUS] = "Minus", 
+	[OP_PLUS] = "Plus", 
+	[OP_STAR] = "Star", 
+	[OP_SLASH] = "Slash", 
+	[OP_LESS_EQUAL] = "<=", 
+	[OP_GREATER_EQUAL] = ">=", 
+	[OP_LESS] = "<", 
+	[OP_GREATER] = ">", 
+	[OP_DIFFERENT] = "!=", 
 
 	// Others
 	[IDENTIFIER] = "Identifier",
@@ -187,14 +197,49 @@ i32 tokenize(char *text, token *tokens) {
 				tokens[idx] = (token){ .type = COMMA };
 				idx++;
 				break;
+			case '>':
+				{
+					token_type type;
+					if (peek('=', text[i+1])) {
+						type = OP_GREATER_EQUAL;
+						i++;
+					} else {
+						type = OP_GREATER;
+					}
+
+					tokens[idx] = (token){ .type = type };
+					idx++;
+				}
+				break;
+			case '<':
+				{
+					token_type type;
+					if (peek('=', text[i+1])) {
+						type = OP_LESS_EQUAL;
+						i++;
+					} else {
+						type = OP_LESS;
+					}
+
+					tokens[idx] = (token){ .type = type };
+					idx++;
+				}
+				break;
+			case '!':
+				if (peek('=', text[i+1])) {
+					tokens[idx] = (token){ .type = OP_DIFFERENT };
+					idx++;
+					i++;
+				} 
+				break;
 			case '=':
 				{
 					token_type type;
 					if (peek('=', text[i+1])) {
-						type = EQUALS;
+						type = OP_EQUALS;
 						i++;
 					} else {
-						type = ASSIGNMENT;
+						type = OP_ASSIGNMENT;
 					}
 
 					tokens[idx] = (token){ .type = type };
@@ -202,7 +247,7 @@ i32 tokenize(char *text, token *tokens) {
 				}
 				break;
 			case '*':
-				tokens[idx] = (token){ .type = STAR };
+				tokens[idx] = (token){ .type = OP_STAR };
 				idx++;
 				break;
 			case '-':
@@ -212,7 +257,7 @@ i32 tokenize(char *text, token *tokens) {
 						type = ARROW;
 						i++;
 					} else {
-						type = MINUS;
+						type = OP_MINUS;
 					}
 
 					tokens[idx] = (token){ .type = type };
@@ -220,7 +265,7 @@ i32 tokenize(char *text, token *tokens) {
 				}
 				break;
 			case '+':
-				tokens[idx] = (token){ .type = PLUS };
+				tokens[idx] = (token){ .type = OP_PLUS };
 				idx++;
 				break;
 			case '/':
@@ -243,7 +288,7 @@ i32 tokenize(char *text, token *tokens) {
 						continue;
 					}
 
-					tokens[idx] = (token){ .type = SLASH };
+					tokens[idx] = (token){ .type = OP_SLASH };
 					idx++;
 				}
 				break;

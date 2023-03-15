@@ -19,6 +19,10 @@ let factorial_match n =
   | 0 -> 1
   | n -> n * factorial_match n - 1
 
+let is_different a b = a != b
+let max a b = if a >= b do a else b
+let min a b = if a <= b do a else b
+
 // Probably going to need to use semicolons if it's not gonna be identation based
 let factorial n =
   if n == 0 do 
