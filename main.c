@@ -23,6 +23,7 @@ typedef enum {
 	COMMA,
 	ARROW,
 	PIPE,
+	DOT,
 
 	// operators
 	ASSIGNMENT,
@@ -38,6 +39,7 @@ typedef enum {
 	LITERAL_STRING,
 	LITERAL_INT,
 	LITERAL_FLOAT,
+	// TODO: add booleans
 
 	// keywords
 	KW_LET,
@@ -60,6 +62,7 @@ char* pretty_tokens[] = {
 	[COMMA] = ",", 
 	[ARROW] = "Arrow", 
 	[PIPE] = "|", 
+	[DOT] = ".", 
 
 	// Operators
 	[ASSIGNMENT] = "Assignment", 
@@ -161,6 +164,10 @@ i32 tokenize(char *text, token *tokens) {
 				tokens[idx] = (token){ .type = PIPE};
 				idx++;
 				break;
+			case '.':
+				tokens[idx] = (token){ .type = DOT };
+				idx++;
+				break;
 			case ':':
 				{
 					token_type type;
@@ -218,8 +225,16 @@ i32 tokenize(char *text, token *tokens) {
 				break;
 			case '/':
 				{
-					// TODO: multi-line comments
-					// consume comments
+					// multiline comment
+					if (peek('*', text[i+1])) {
+						do {
+							i++;
+						}
+						while(!(peek('*', text[i]) && peek('/', text[i+1])));
+						i++;
+						continue;
+					}
+
 					if (peek('/', text[i+1])) {
 						do {
 							i++;
@@ -232,7 +247,6 @@ i32 tokenize(char *text, token *tokens) {
 					idx++;
 				}
 				break;
-			// TODO: parse float and integers
 			case '"':
 				{
 					i32 buf_len = 32;
@@ -285,7 +299,6 @@ i32 tokenize(char *text, token *tokens) {
 						free(value);
 					}
 
-					// TODO: Keywords
 					if (match_keyword("let", &text[i])) {
 						tokens[idx] = (token){ .type = KW_LET };
 						i += strlen("let") - 1;

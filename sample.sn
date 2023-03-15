@@ -1,3 +1,9 @@
+/* This is an example of the Solanum language!
+
+   It supports multiline comments. 
+
+*/
+
 record User {
     name :: String
     age :: Int // TODO: Different types of integer
