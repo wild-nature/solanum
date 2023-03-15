@@ -107,6 +107,25 @@ typedef struct {
 
 // ---------------------------------------------------------
 
+bool valid_identifier_char(char c) {
+	if (c >= 65 && c <= 90) {
+		return true;
+	} 
+
+	if (c >= 97 && c <= 122) {
+		return true;
+	} 
+
+	if (c == '_') {
+		return true;
+	}
+
+	return false;
+} 
+
+// ---------------------------------------------------------
+
+// TODO: replace this function with macro
 u32 peek(char target, char next) {
 	return target == next;
 } 
@@ -372,7 +391,8 @@ i32 tokenize(char *text, token *tokens) {
 						char len = 1;
 						strncat(value, &text[i], 1);
 
-						while (isalnum(text[i+len])) {
+						while (valid_identifier_char(text[i + len])) {
+							printf("chhar is %c\n", text[i + len]);
 							if (len > buf_len) {
 								buf_len *= 2;
 								value = realloc(value, buf_len);
