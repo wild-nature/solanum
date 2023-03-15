@@ -37,6 +37,8 @@ typedef enum {
 	OP_LESS, 
 	OP_GREATER, 
 	OP_DIFFERENT, 
+	OP_OR, 
+	OP_AND, 
 
 	IDENTIFIER,
 
@@ -44,7 +46,7 @@ typedef enum {
 	LITERAL_STRING,
 	LITERAL_INT,
 	LITERAL_FLOAT,
-	// TODO: add booleans
+	LITERAL_BOOL,
 
 	// keywords
 	KW_LET,
@@ -81,12 +83,15 @@ char* pretty_tokens[] = {
 	[OP_LESS] = "<", 
 	[OP_GREATER] = ">", 
 	[OP_DIFFERENT] = "!=", 
+	[OP_OR] = "||", 
+	[OP_AND] = "&&", 
 
 	// Others
 	[IDENTIFIER] = "Identifier",
 	[LITERAL_STRING] = "String",
 	[LITERAL_INT] = "Int",
 	[LITERAL_FLOAT] = "Float",
+	[LITERAL_BOOL] = "Boolean",
 
 	// keywords
 	[KW_LET] = "let",
@@ -102,6 +107,7 @@ typedef struct {
 		i64 integer;
 		f64 decimal;
 		char *string;
+		bool boolean;
 	};
 } token;
 
@@ -132,8 +138,7 @@ u32 peek(char target, char next) {
 
 // ---------------------------------------------------------
 
-// TODO: fix
-u32 match_keyword(char *keyword, char *target) {
+u32 match_word(char *keyword, char *target) {
 	u32 idx = 0;
 
 	while (keyword[idx] == target[idx]) {
@@ -143,13 +148,6 @@ u32 match_keyword(char *keyword, char *target) {
 	if (idx == strlen(keyword)) {
 		return 1;
 	}
-
-	/* if (strspn(keyword, target) == strlen(keyword)) { */
-	/* 	printf("%s -------- %s\n", keyword, target); */
-	/* 	return 1; */
-	/* } */
-
-/* 	printf("%s -------- %s\n", keyword, target); */
 
 	return 0;
 }
@@ -190,8 +188,25 @@ i32 tokenize(char *text, token *tokens) {
 				idx++;
 				break;
 			case '|':
-				tokens[idx] = (token){ .type = PIPE};
-				idx++;
+				{
+					token_type type;
+
+					if (peek('|', text[i+1])) {
+						type = OP_OR;
+						i++;
+					} else {
+						type = PIPE;
+					}
+
+					tokens[idx] = (token){ .type = type };
+					idx++;
+				}
+				break;
+			case '&':
+				if (peek('&', text[i+1])) {
+					tokens[idx] = (token){ .type = OP_AND };
+					i++;
+				} 
 				break;
 			case '.':
 				tokens[idx] = (token){ .type = DOT };
@@ -361,25 +376,36 @@ i32 tokenize(char *text, token *tokens) {
 						free(value);
 					}
 
-					if (match_keyword("let", &text[i])) {
+					// Keywords
+					if (match_word("let", &text[i])) {
 						tokens[idx] = (token){ .type = KW_LET };
 						i += strlen("let") - 1;
 						idx++;
-					} else if (match_keyword("record", &text[i])) {
+					} else if (match_word("record", &text[i])) {
 						tokens[idx] = (token){ .type = KW_RECORD };
 						i += strlen("record") - 1;
 						idx++;
-					} else if (match_keyword("if", &text[i])) {
+					} else if (match_word("if", &text[i])) {
 						tokens[idx] = (token){ .type = KW_IF };
 						i += strlen("if") - 1;
 						idx++;
-					} else if (match_keyword("do", &text[i])) {
+					} else if (match_word("do", &text[i])) {
 						tokens[idx] = (token){ .type = KW_DO };
 						i += strlen("do") - 1;
 						idx++;
-					} else if (match_keyword("else", &text[i])) {
+					} else if (match_word("else", &text[i])) {
 						tokens[idx] = (token){ .type = KW_ELSE };
 						i += strlen("else") - 1;
+						idx++;
+					} 
+					// Booleans
+					else if (match_word("true", &text[i])) {
+						tokens[idx] = (token){ .type = LITERAL_BOOL, .boolean = true };
+						i += strlen("true") - 1;
+						idx++;
+					} else if (match_word("false", &text[i])) {
+						tokens[idx] = (token){ .type = LITERAL_BOOL, .boolean = false };
+						i += strlen("false") - 1;
 						idx++;
 					} 
 					// Identifiers
@@ -390,7 +416,6 @@ i32 tokenize(char *text, token *tokens) {
 						strncat(value, &text[i], 1);
 
 						while (valid_identifier_char(text[i + len])) {
-							printf("chhar is %c\n", text[i + len]);
 							if (len > buf_len) {
 								buf_len *= 2;
 								value = realloc(value, buf_len);
@@ -438,6 +463,12 @@ char *format_token(char *buffer, token tk) {
 		case LITERAL_FLOAT:
 			sprintf(helper, " value=%f", tk.decimal);
 			strcat(buffer, helper);
+			break;
+		case LITERAL_BOOL:
+			sprintf(helper, " value=%s", tk.boolean ? "true" : "false");
+			strcat(buffer, helper);
+			break;
+		default:
 			break;
 	}
 
