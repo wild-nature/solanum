@@ -316,7 +316,6 @@ i32 tokenize(char *text, token *tokens) {
 					i32 buf_len = 32;
 					char *value = malloc(buf_len);
 					char len = 1;
-					strncat(value, &text[i], 1);
 
 					// TODO: support backslash for escaping
 					while (!peek('"', text[i+len]) && &text[i+len] != NULL) {
@@ -329,7 +328,6 @@ i32 tokenize(char *text, token *tokens) {
 						len++;
 					}
 
-					strncat(value, "\"", 1);
 					tokens[idx] = (token){ .type = LITERAL_STRING, .string = value };
 					idx++;
 					i += len;
