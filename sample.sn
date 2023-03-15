@@ -1,6 +1,31 @@
-let a b c = b + c
+record User {
+    name :: String
+    age :: Int // TODO: Different types of integer
+    bankBalance :: f64
+  }
 
+a :: (Int, Int) -> Int // No currying for now, so no between-param arrows
+let add b c = b + c
+
+// Pattern matching would be cool, but not for now
+let factorial_match n =
+  match factorial with 
+  | 0 -> 1
+  | n -> n * factorial_match n - 1
+
+// Probably going to need to use semicolons if it's not gonna be identation based
+let factorial n =
+  if n == 0 do 
+    1
+  else
+    n * factorial n - 1;
+
+// No IO, side effects will rule here
 let main =
-  this_is_foo_bar;
-  flkjsdjlkfkljf;
-  lasfkjfdlkf;
+  User user = {
+    name = " john silva ",
+    age = add 10 7,
+    bankBalance = 1990.90
+  }
+
+  print user

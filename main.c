@@ -2,15 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
+#include <stdbool.h>
 
 #define MAX_FILE_SIZE 8196000000 // 8mb
-
-char* pretty_tokens[] = {
-	"(", ")", "[", "]", "{", "}", 
-	"Equals", "Minus", "Plus", "Star", "Slash",
-	"Identifier", "String", "Integer", "Float", 
-	"let"
-};
 
 typedef enum {
 	L_PAREN,
@@ -19,11 +14,19 @@ typedef enum {
 	L_BRACKET,
 	R_BRACKET,
 
-	L_BRACES,
-	R_BRACES,
+	L_BRACE,
+	R_BRACE,
+
+	SEMICOLON,
+	DOUBLE_COLON,
+	COLON,
+	COMMA,
+	ARROW,
+	PIPE,
 
 	// operators
-	EQUAL,
+	ASSIGNMENT,
+	EQUALS,
 	MINUS,
 	PLUS,
 	STAR,
@@ -32,13 +35,53 @@ typedef enum {
 	IDENTIFIER,
 
 	// values
-	STRING,
-	INTEGER,
-	FLOAT,
+	LITERAL_STRING,
+	LITERAL_INT,
+	LITERAL_FLOAT,
 
 	// keywords
-	KW_LET
+	KW_LET,
+	KW_RECORD,
+	KW_IF,
+	KW_DO,
+	KW_ELSE,
 } token_type;
+
+char* pretty_tokens[] = {
+	[L_PAREN] = "(", 
+	[R_PAREN] = ")", 
+	[L_BRACKET] = "[", 
+	[R_BRACKET] = "]", 
+	[L_BRACE] = "{", 
+	[R_BRACE] = "}", 
+	[SEMICOLON] = ";", 
+	[DOUBLE_COLON] = "::", 
+	[COLON] = ":", 
+	[COMMA] = ",", 
+	[ARROW] = "Arrow", 
+	[PIPE] = "|", 
+
+	// Operators
+	[ASSIGNMENT] = "Assignment", 
+	[EQUALS] = "Equals", 
+	[MINUS] = "Minus", 
+	[PLUS] = "Plus", 
+	[STAR] = "Star", 
+	[SLASH] = "Slash", 
+
+	// Others
+	[IDENTIFIER] = "Identifier",
+	[LITERAL_STRING] = "String",
+	[LITERAL_INT] = "Int",
+	[LITERAL_FLOAT] = "Float",
+
+	// keywords
+	[KW_LET] = "let",
+	[KW_RECORD] = "record",
+	[KW_IF] = "if",
+	[KW_DO] = "do",
+	[KW_ELSE] = "else",
+};
 
 typedef struct {
 	token_type type;
@@ -49,25 +92,248 @@ typedef struct {
 	};
 } token;
 
-typedef struct {
-	token *tokens;
-	i32 total_tokens;
-} token_list;
+// ---------------------------------------------------------
+
+u32 peek(char target, char next) {
+	return target == next;
+} 
 
 // ---------------------------------------------------------
 
-token_list tokenize(char *text) {
-	token *tokens = malloc(sizeof(token) * 1000); // TODO: exponentially increase it
+// TODO: fix
+u32 match_keyword(char *keyword, char *target) {
+	u32 idx = 0;
 
-	tokens[0] = (token){ .type = KW_LET };
-	tokens[1] = (token){ .type = IDENTIFIER, .string = "codando" };
-	tokens[2] = (token){ .type = EQUAL };
-	tokens[3] = (token){ .type = INTEGER, .integer = 10 };
+	while (keyword[idx] == target[idx]) {
+		idx++;
+	} 
 
-	return (token_list){
-		.tokens = tokens,
-		.total_tokens = 4,
-	};
+	if (idx == strlen(keyword)) {
+		return 1;
+	}
+
+	/* if (strspn(keyword, target) == strlen(keyword)) { */
+	/* 	printf("%s -------- %s\n", keyword, target); */
+	/* 	return 1; */
+	/* } */
+
+/* 	printf("%s -------- %s\n", keyword, target); */
+
+	return 0;
+}
+
+// ---------------------------------------------------------
+
+i32 tokenize(char *text, token *tokens) {
+	i32 idx = 0;
+
+	for (i32 i = 0; i < strlen(text); i++) {
+		switch (text[i]) {
+			case '(':
+				tokens[idx] = (token){ .type = L_PAREN};
+				idx++;
+				break;
+			case ')':
+				tokens[idx] = (token){ .type = R_PAREN};
+				idx++;
+				break;
+			case '[':
+				tokens[idx] = (token){ .type = L_BRACKET};
+				idx++;
+				break;
+			case ']':
+				tokens[idx] = (token){ .type = R_BRACKET};
+				idx++;
+				break;
+			case '{':
+				tokens[idx] = (token){ .type = L_BRACE};
+				idx++;
+				break;
+			case '}':
+				tokens[idx] = (token){ .type = R_BRACE};
+				idx++;
+				break;
+			case ';':
+				tokens[idx] = (token){ .type = SEMICOLON};
+				idx++;
+				break;
+			case '|':
+				tokens[idx] = (token){ .type = PIPE};
+				idx++;
+				break;
+			case ':':
+				{
+					token_type type;
+
+					if (peek(':', text[i+1])) {
+						type = DOUBLE_COLON;
+						i++;
+					} else {
+						type = COLON;
+					}
+
+					tokens[idx] = (token){ .type = type};
+					idx++;
+				}
+				break;
+			case ',':
+				tokens[idx] = (token){ .type = COMMA };
+				idx++;
+				break;
+			case '=':
+				{
+					token_type type;
+					if (peek('=', text[i+1])) {
+						type = EQUALS;
+						i++;
+					} else {
+						type = ASSIGNMENT;
+					}
+
+					tokens[idx] = (token){ .type = type };
+					idx++;
+				}
+				break;
+			case '*':
+				tokens[idx] = (token){ .type = STAR };
+				idx++;
+				break;
+			case '-':
+				{
+					token_type type;
+					if (peek('>', text[i+1])) {
+						type = ARROW;
+						i++;
+					} else {
+						type = MINUS;
+					}
+
+					tokens[idx] = (token){ .type = type };
+					idx++;
+				}
+				break;
+			case '+':
+				tokens[idx] = (token){ .type = PLUS };
+				idx++;
+				break;
+			case '/':
+				{
+					// TODO: multi-line comments
+					// consume comments
+					if (peek('/', text[i+1])) {
+						do {
+							i++;
+						}
+						while(!peek('\n', text[i]));
+						continue;
+					}
+
+					tokens[idx] = (token){ .type = SLASH };
+					idx++;
+				}
+				break;
+			// TODO: parse float and integers
+			case '"':
+				{
+					i32 buf_len = 32;
+					char *value = malloc(buf_len);
+					char len = 1;
+					strncat(value, &text[i], 1);
+
+					// TODO: support backslash for escaping
+					while (!peek('"', text[i+len]) && &text[i+len] != NULL) {
+						if (len > buf_len) {
+							buf_len *= 2;
+							value = realloc(value, buf_len);
+						}
+
+						strncat(value, &text[i+len], 1);
+						len++;
+					}
+
+					strncat(value, "\"", 1);
+					tokens[idx] = (token){ .type = LITERAL_STRING, .string = value };
+					idx++;
+					i += len;
+				}
+				break;
+			default:
+				{
+					if (isdigit(text[i])) {
+						bool is_float = false;
+						char *value = calloc(65, sizeof(char));
+
+						while (isdigit(text[i])) {
+							if (text[i + 1] == '.' && isdigit(text[i + 2])) {
+								strncat(value, &text[i], 1);
+								strncat(value, ".", 1);
+								i += 2;
+								is_float = true;
+							} else {
+								strncat(value, &text[i], 1);
+								i++;
+							}
+						}
+
+						if (is_float) {
+							tokens[idx] = (token){ .type = LITERAL_FLOAT, .decimal = atof(value) };
+						} else {
+							tokens[idx] = (token){ .type = LITERAL_INT, .integer = atol(value) };
+						}
+
+						idx++;
+						free(value);
+					}
+
+					// TODO: Keywords
+					if (match_keyword("let", &text[i])) {
+						tokens[idx] = (token){ .type = KW_LET };
+						i += strlen("let") - 1;
+						idx++;
+					} else if (match_keyword("record", &text[i])) {
+						tokens[idx] = (token){ .type = KW_RECORD };
+						i += strlen("record") - 1;
+						idx++;
+					} else if (match_keyword("if", &text[i])) {
+						tokens[idx] = (token){ .type = KW_IF };
+						i += strlen("if") - 1;
+						idx++;
+					} else if (match_keyword("do", &text[i])) {
+						tokens[idx] = (token){ .type = KW_DO };
+						i += strlen("do") - 1;
+						idx++;
+					} else if (match_keyword("else", &text[i])) {
+						tokens[idx] = (token){ .type = KW_ELSE };
+						i += strlen("else") - 1;
+						idx++;
+					} 
+					// Identifiers
+					else if (isalpha(text[i])) {
+						i32 buf_len = 32;
+						char *value = malloc(buf_len);
+						char len = 1;
+						strncat(value, &text[i], 1);
+
+						while (isalnum(text[i+len])) {
+							if (len > buf_len) {
+								buf_len *= 2;
+								value = realloc(value, buf_len);
+							}
+
+							strncat(value, &text[i+len], 1);
+							len++;
+						}
+
+						tokens[idx] = (token){ .type = IDENTIFIER, .string = value };
+						idx++;
+						i += len - 1;
+					}
+
+				}
+		}
+	}
+
+	return idx;
 }
 
 // ---------------------------------------------------------
@@ -78,24 +344,22 @@ char *format_token_type(token_type type) {
 
 // ---------------------------------------------------------
 
-// TODO: pass allocation responsibility to caller
-char *format_token(token tk) {
-	char *buffer = malloc(1000);
+char *format_token(char *buffer, token tk) {
 	char *helper = malloc(50);
 
 	sprintf(buffer, "<Token type=%s", format_token_type(tk.type));
 
 	switch (tk.type) {
 		case IDENTIFIER:
-		case STRING:
+		case LITERAL_STRING:
 			sprintf(helper, " value=%s", tk.string);
 			strcat(buffer, helper);
 			break;
-		case INTEGER:
-			sprintf(helper, " value=%d", tk.integer);
+		case LITERAL_INT:
+			sprintf(helper, " value=%ld", tk.integer);
 			strcat(buffer, helper);
 			break;
-		case FLOAT:
+		case LITERAL_FLOAT:
 			sprintf(helper, " value=%f", tk.decimal);
 			strcat(buffer, helper);
 			break;
@@ -126,17 +390,15 @@ int main() {
     FILE *file = fopen("sample.sn", "r");
 
     char *text = parse_file(file);
-	token_list tl = tokenize(text);
+	token *tokens = malloc(sizeof(token) * 1000);
+	int total_tokens = tokenize(text, tokens);
 
-	for (i32 i = 0; i < tl.total_tokens; i++) {
-		char *pretty_token = format_token(tl.tokens[i]);
+	for (i32 i = 0; i < total_tokens; i++) {
+		char *pretty_token = malloc(1000);
+		format_token(pretty_token, tokens[i]);
 		printf("%s\n", pretty_token);
 		free(pretty_token);
 	}
-
-
-	puts(text);
-	printf("length: %d\n", strlen(text));
 
 	free(text);
     fclose(file);
