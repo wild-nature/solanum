@@ -5,7 +5,20 @@
 #include <ctype.h>
 #include <stdbool.h>
 
+#define ADD_SIMPLE_TOKEN(x) tokens[idx++] = (token){ .type = x };
+#define ADD_INT_TOKEN(value) tokens[idx++] = (token){ .type = LITERAL_INT, .integer = value };
+#define ADD_FLOAT_TOKEN(value) tokens[idx++] = (token){ .type = LITERAL_FLOAT, .decimal = value };
+#define ADD_STRING_TOKEN(value) tokens[idx++] = (token){ .type = LITERAL_STRING, .string = value };
+#define ADD_IDENTIFIER_TOKEN(value) tokens[idx++] = (token){ .type = IDENTIFIER, .string = value };
+#define ADD_BOOL_TOKEN(value) tokens[idx++] = (token){ .type = LITERAL_BOOL, .boolean = value };
+
+#define PREVIOUS text[i - 1]
+#define CURRENT text[i]
+#define NEXT text[i + 1]
+#define NEXT_NEXT text[i + 2]
+
 #define MAX_FILE_SIZE 8196000000 // 8mb
+#define MAX_IDENTIFIER_LEN 256
 
 typedef enum {
 	L_PAREN,
@@ -102,6 +115,7 @@ char* pretty_tokens[] = {
 };
 
 typedef struct {
+	// TODO: track token's position
 	token_type type;
 	union {
 		i64 integer;
@@ -129,12 +143,62 @@ bool valid_identifier_char(char c) {
 	return false;
 } 
 
-// ---------------------------------------------------------
+i32 try_parse_int(char *buffer, i32 *number) {
+	i32 length = 0;
+	char *value = calloc(65, sizeof(char));
 
-// TODO: replace this function with macro
-u32 peek(char target, char next) {
-	return target == next;
-} 
+	while (isdigit(buffer[length])) {
+		if (buffer[length + 1] == '.') {
+			return 0; // float, so we don't parse it as int
+		}
+
+		strncat(value, &buffer[length], 1);
+		length++;
+	}
+
+	if (length > 0) {
+		*number = atol(value);
+	}
+
+	free(value);
+	return length;
+}
+
+i32 try_parse_float(char *buffer, f64 *number) {
+	i32 length = 0;
+	char *value = calloc(65, sizeof(char));
+
+	while (isdigit(buffer[length])) {
+		strncat(value, &buffer[length], 1);
+		length++;
+
+		if (buffer[length + 1] == '.' && isdigit(buffer[length + 2])) {
+			strncat(value, &buffer[length], 1);
+			strncat(value, ".", 1);
+			length += 2;
+			continue;
+		}
+
+	}
+
+	if (length > 0) {
+		*number = atof(value);
+	}
+
+	free(value);
+	return length;
+}
+
+i32 parse_identifier(char *buffer, char *identifier) {
+	i32 length = 0;
+
+	while (valid_identifier_char(buffer[length])) {
+		length++;
+	}
+
+	strncat(identifier, buffer, length);
+	return length;
+}
 
 // ---------------------------------------------------------
 
@@ -146,7 +210,7 @@ u32 match_word(char *keyword, char *target) {
 	} 
 
 	if (idx == strlen(keyword)) {
-		return 1;
+		return idx;
 	}
 
 	return 0;
@@ -158,172 +222,124 @@ i32 tokenize(char *text, token *tokens) {
 	i32 idx = 0;
 
 	for (i32 i = 0; i < strlen(text); i++) {
-		switch (text[i]) {
+		switch (CURRENT) {
 			case '(':
-				tokens[idx] = (token){ .type = L_PAREN};
-				idx++;
+				ADD_SIMPLE_TOKEN(L_PAREN);
 				break;
 			case ')':
-				tokens[idx] = (token){ .type = R_PAREN};
-				idx++;
+				ADD_SIMPLE_TOKEN(R_PAREN);
 				break;
 			case '[':
-				tokens[idx] = (token){ .type = L_BRACKET};
-				idx++;
+				ADD_SIMPLE_TOKEN(L_BRACKET);
 				break;
 			case ']':
-				tokens[idx] = (token){ .type = R_BRACKET};
-				idx++;
+				ADD_SIMPLE_TOKEN(R_BRACKET);
 				break;
 			case '{':
-				tokens[idx] = (token){ .type = L_BRACE};
-				idx++;
+				ADD_SIMPLE_TOKEN(L_BRACE);
 				break;
 			case '}':
-				tokens[idx] = (token){ .type = R_BRACE};
-				idx++;
+				ADD_SIMPLE_TOKEN(R_BRACE);
 				break;
 			case ';':
-				tokens[idx] = (token){ .type = SEMICOLON};
-				idx++;
+				ADD_SIMPLE_TOKEN(SEMICOLON);
 				break;
 			case '|':
-				{
-					token_type type;
-
-					if (peek('|', text[i+1])) {
-						type = OP_OR;
-						i++;
-					} else {
-						type = PIPE;
-					}
-
-					tokens[idx] = (token){ .type = type };
-					idx++;
+				if (NEXT == '|') {
+					ADD_SIMPLE_TOKEN(OP_OR);
+					i++;
+				} else {
+					ADD_SIMPLE_TOKEN(PIPE);
 				}
 				break;
 			case '&':
-				if (peek('&', text[i+1])) {
-					tokens[idx] = (token){ .type = OP_AND };
+				if (NEXT == '&') {
+					ADD_SIMPLE_TOKEN(OP_AND);
 					i++;
 				} 
 				break;
 			case '.':
-				tokens[idx] = (token){ .type = DOT };
-				idx++;
+				ADD_SIMPLE_TOKEN(DOT);
 				break;
 			case ':':
-				{
-					token_type type;
-
-					if (peek(':', text[i+1])) {
-						type = DOUBLE_COLON;
-						i++;
-					} else {
-						type = COLON;
-					}
-
-					tokens[idx] = (token){ .type = type};
-					idx++;
+				if (NEXT == ':') {
+					ADD_SIMPLE_TOKEN(DOUBLE_COLON);
+					i++;
+				} else {
+					ADD_SIMPLE_TOKEN(COLON);
 				}
+
 				break;
 			case ',':
-				tokens[idx] = (token){ .type = COMMA };
-				idx++;
+				ADD_SIMPLE_TOKEN(COMMA);
 				break;
 			case '>':
-				{
-					token_type type;
-					if (peek('=', text[i+1])) {
-						type = OP_GREATER_EQUAL;
-						i++;
-					} else {
-						type = OP_GREATER;
-					}
-
-					tokens[idx] = (token){ .type = type };
-					idx++;
+				if (NEXT == '=') {
+					ADD_SIMPLE_TOKEN(OP_GREATER_EQUAL);
+					i++;
+				} else {
+					ADD_SIMPLE_TOKEN(OP_GREATER);
 				}
+
 				break;
 			case '<':
-				{
-					token_type type;
-					if (peek('=', text[i+1])) {
-						type = OP_LESS_EQUAL;
-						i++;
-					} else {
-						type = OP_LESS;
-					}
-
-					tokens[idx] = (token){ .type = type };
-					idx++;
+				if (NEXT  == '=') {
+					ADD_SIMPLE_TOKEN(OP_LESS_EQUAL);
+					i++;
+				} else {
+					ADD_SIMPLE_TOKEN(OP_LESS);
 				}
+
 				break;
 			case '!':
-				if (peek('=', text[i+1])) {
-					tokens[idx] = (token){ .type = OP_DIFFERENT };
-					idx++;
+				if (NEXT == '=') {
+					ADD_SIMPLE_TOKEN(OP_DIFFERENT);
 					i++;
 				} 
 				break;
 			case '=':
-				{
-					token_type type;
-					if (peek('=', text[i+1])) {
-						type = OP_EQUALS;
-						i++;
-					} else {
-						type = OP_ASSIGNMENT;
-					}
-
-					tokens[idx] = (token){ .type = type };
-					idx++;
+				if (NEXT == '=') {
+					ADD_SIMPLE_TOKEN(OP_EQUALS);
+					i++;
+				} else {
+					ADD_SIMPLE_TOKEN(OP_ASSIGNMENT);
 				}
 				break;
 			case '*':
-				tokens[idx] = (token){ .type = OP_STAR };
-				idx++;
+				ADD_SIMPLE_TOKEN(OP_STAR);
 				break;
 			case '-':
-				{
-					token_type type;
-					if (peek('>', text[i+1])) {
-						type = ARROW;
-						i++;
-					} else {
-						type = OP_MINUS;
-					}
-
-					tokens[idx] = (token){ .type = type };
-					idx++;
+				if (NEXT == '>') {
+					ADD_SIMPLE_TOKEN(ARROW);
+					i++;
+				} else {
+					ADD_SIMPLE_TOKEN(OP_MINUS);
 				}
 				break;
 			case '+':
-				tokens[idx] = (token){ .type = OP_PLUS };
-				idx++;
+				ADD_SIMPLE_TOKEN(OP_PLUS);
 				break;
 			case '/':
 				{
 					// multiline comment
-					if (peek('*', text[i+1])) {
+					if (NEXT == '*') {
 						do {
 							i++;
 						}
-						while(!(peek('*', text[i]) && peek('/', text[i+1])));
+						while(!(CURRENT == '*' && NEXT == '/'));
 						i++;
 						continue;
 					}
 
-					if (peek('/', text[i+1])) {
+					if (NEXT == '/') {
 						do {
 							i++;
 						}
-						while(!peek('\n', text[i]));
+						while(NEXT != '\n');
 						continue;
 					}
 
-					tokens[idx] = (token){ .type = OP_SLASH };
-					idx++;
+					ADD_SIMPLE_TOKEN(OP_SLASH);
 				}
 				break;
 			case '"':
@@ -333,7 +349,7 @@ i32 tokenize(char *text, token *tokens) {
 					char len = 1;
 
 					// TODO: support backslash for escaping
-					while (!peek('"', text[i+len]) && &text[i+len] != NULL) {
+					while (text[i + len] != '"' && &NEXT != NULL) {
 						if (len > buf_len) {
 							buf_len *= 2;
 							value = realloc(value, buf_len);
@@ -343,94 +359,58 @@ i32 tokenize(char *text, token *tokens) {
 						len++;
 					}
 
-					tokens[idx] = (token){ .type = LITERAL_STRING, .string = value };
-					idx++;
+					tokens[idx++] = (token){ .type = LITERAL_STRING, .string = value };
 					i += len;
 				}
 				break;
 			default:
 				{
-					if (isdigit(text[i])) {
-						bool is_float = false;
-						char *value = calloc(65, sizeof(char));
+					i32 len = 0;
+					i32 int_literal = 0;
+					f64 float_literal = 0;
 
-						while (isdigit(text[i])) {
-							if (text[i + 1] == '.' && isdigit(text[i + 2])) {
-								strncat(value, &text[i], 1);
-								strncat(value, ".", 1);
-								i += 2;
-								is_float = true;
-							} else {
-								strncat(value, &text[i], 1);
-								i++;
-							}
-						}
-
-						if (is_float) {
-							tokens[idx] = (token){ .type = LITERAL_FLOAT, .decimal = atof(value) };
-						} else {
-							tokens[idx] = (token){ .type = LITERAL_INT, .integer = atol(value) };
-						}
-
-						idx++;
-						free(value);
-					}
-
-					// Keywords
-					if (match_word("let", &text[i])) {
-						tokens[idx] = (token){ .type = KW_LET };
-						i += strlen("let") - 1;
-						idx++;
-					} else if (match_word("record", &text[i])) {
-						tokens[idx] = (token){ .type = KW_RECORD };
-						i += strlen("record") - 1;
-						idx++;
-					} else if (match_word("if", &text[i])) {
-						tokens[idx] = (token){ .type = KW_IF };
-						i += strlen("if") - 1;
-						idx++;
-					} else if (match_word("do", &text[i])) {
-						tokens[idx] = (token){ .type = KW_DO };
-						i += strlen("do") - 1;
-						idx++;
-					} else if (match_word("else", &text[i])) {
-						tokens[idx] = (token){ .type = KW_ELSE };
-						i += strlen("else") - 1;
-						idx++;
-					} 
-					// Booleans
-					else if (match_word("true", &text[i])) {
-						tokens[idx] = (token){ .type = LITERAL_BOOL, .boolean = true };
-						i += strlen("true") - 1;
-						idx++;
-					} else if (match_word("false", &text[i])) {
-						tokens[idx] = (token){ .type = LITERAL_BOOL, .boolean = false };
-						i += strlen("false") - 1;
-						idx++;
-					} 
-					// Identifiers
-					else if (isalpha(text[i])) {
-						i32 buf_len = 32;
-						char *value = malloc(buf_len);
-						char len = 1;
-						strncat(value, &text[i], 1);
-
-						while (valid_identifier_char(text[i + len])) {
-							if (len > buf_len) {
-								buf_len *= 2;
-								value = realloc(value, buf_len);
-							}
-
-							strncat(value, &text[i+len], 1);
-							len++;
-						}
-
-						tokens[idx] = (token){ .type = IDENTIFIER, .string = value };
-						idx++;
+					if ((len = try_parse_int(&CURRENT, &int_literal))) {
+						ADD_INT_TOKEN(int_literal);
+						i += len - 1;
+					} else if ((len = try_parse_float(&CURRENT, &float_literal))) {
+						ADD_FLOAT_TOKEN(float_literal);
 						i += len - 1;
 					}
 
-				}
+					// Keywords
+					if ((len = match_word("let", &CURRENT))) {
+						ADD_SIMPLE_TOKEN(KW_LET);
+						i += len - 1;
+					} else if ((len = match_word("record", &CURRENT))) {
+						ADD_SIMPLE_TOKEN(KW_RECORD);
+						i += len - 1;
+					} else if ((len = match_word("if", &CURRENT))) {
+						ADD_SIMPLE_TOKEN(KW_IF);
+						i += len - 1;
+					} else if ((len = match_word("do", &CURRENT))) {
+						ADD_SIMPLE_TOKEN(KW_DO);
+						i += len - 1;
+					} else if ((len = match_word("else", &CURRENT))) {
+						ADD_SIMPLE_TOKEN(KW_ELSE);
+						i += len - 1;
+					}
+					// Booleans
+					else if ((len = match_word("true", &CURRENT))) {
+						ADD_BOOL_TOKEN(true);
+						i += len - 1;
+					} else if ((len = match_word("false", &CURRENT))) {
+						ADD_BOOL_TOKEN(false);
+						i += len - 1;
+					} 
+					// Identifiers
+					else if (valid_identifier_char(CURRENT)) {
+						char *identifier = malloc(MAX_IDENTIFIER_LEN);
+						len = parse_identifier(&CURRENT, identifier);
+						ADD_IDENTIFIER_TOKEN(identifier);
+						i += len - 1;
+					}
+
+			}
 		}
 	}
 
