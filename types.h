@@ -1,6 +1,7 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 typedef uint64_t u64;
@@ -18,5 +19,5 @@ typedef uint8_t u8;
 typedef float f32;
 typedef double f64;
 
-#endif /* TYPES_H */
+#endif
 

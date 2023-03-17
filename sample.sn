@@ -10,6 +10,9 @@ record User {
     bankBalance :: f64
   }
 
+// TODO: choose syntax for typing parameters
+let add2 (b: Int) (c: Int) = b + c
+
 a :: (Int, Int) -> Int // No currying for now, so no between-param arrows
 let add b c = b + c
 
