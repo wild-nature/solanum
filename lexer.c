@@ -12,7 +12,6 @@
 #define NEXT text[i + 1]
 #define NEXT_NEXT text[i + 2]
 
-#define MAX_FILE_SIZE 8196000000 // 8mb
 #define MAX_IDENTIFIER_LEN 256
 
 // ---------------------------------------------------------

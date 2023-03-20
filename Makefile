@@ -6,8 +6,8 @@ default: all
 
 all: main
 
-main: main.c
-	$(CC) $(CFLAGS) -o main main.c
+main: main.c lexer.c parser.c
+	$(CC) $(CFLAGS) -o main main.c lexer.c parser.c
 
 clean:
 	$(RM) main

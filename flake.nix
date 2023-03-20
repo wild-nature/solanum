@@ -13,7 +13,7 @@
       in
       {
         devShell = with pkgs; mkShell {
-          buildInputs = [ gcc gnumake ccls ];
+          buildInputs = [ gcc gnumake ccls valgrind ];
         };
       });
 }

@@ -1,7 +1,10 @@
 #include "types.h"
 #include "lexer.h"
+#include "parser.h"
 #include <stdio.h>
 #include <stdlib.h>
+
+#define MAX_FILE_SIZE 8196000000 // 8mb
 
 // ---------------------------------------------------------
 
@@ -25,6 +28,7 @@ int main() {
     char *text = read_file(file);
 	token *tokens = malloc(sizeof(token) * 1000);
 	int total_tokens = tokenize(text, tokens);
+	free(text);
 
 	for (i32 i = 0; i < total_tokens; i++) {
 		char *pretty_token = malloc(1000);
@@ -33,7 +37,12 @@ int main() {
 		free(pretty_token);
 	}
 
-	free(text);
+	expr *ast = parse(tokens, total_tokens);
+	free(tokens);
+
+	print_ast(ast);
+	free(ast);
+
     fclose(file);
 	exit(EXIT_SUCCESS);
 }
