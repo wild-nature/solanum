@@ -134,15 +134,24 @@ expr *parse(token *tokens, i32 total_tokens) {
 	// expr
 	expr *sum = new_expr(BINARY, new_binary(OP_PLUS, left, right));
 
-	return sum;
+	expr *sub = 
+		new_expr(BINARY, 
+			new_binary(OP_MINUS, sum, 
+			new_expr(LITERAL, new_literal(INTEGER, &b))
+		));
+
+	return sub;
 }
 
-void leftpad(int depth) {
-	for (i32 i = 0; i < depth - 1; i++) {
+void leftpad(int depth, int length) {
+	for (i32 i = 0; i < depth; i++) {
+		if (i % length == 0) {
+			putchar('|');
+			continue;
+	 	}
+
 		putchar(' ');
 	}
-
-	printf("%s", "-");
 }
 
 void format_literal(char *buffer, literal_expr *expr) {
@@ -163,7 +172,8 @@ void format_literal(char *buffer, literal_expr *expr) {
 }
 
 void print_ast_rec(expr* root, int depth) {
-	leftpad(depth);
+	int length = 2;
+	leftpad(depth, length);
 
 	switch (root->type) {
 		case LITERAL:
@@ -178,15 +188,15 @@ void print_ast_rec(expr* root, int depth) {
 			// TODO: different type for ast unary operators, for now lets use
 			// this workaround
 			printf("Unary %s\n", "-"); // TODO: print operator
-			print_ast_rec(root->unary->operand, depth + 2);
+			print_ast_rec(root->unary->operand, depth + length);
 			break;
 
 		case BINARY:
 			// TODO: different type for ast binary operators, for now lets use
 			// this workaround
 			printf("Binary %s\n", "+"); // TODO: print operator
-			print_ast_rec(root->binary->left, depth + 2);
-			print_ast_rec(root->binary->right, depth + 2);
+			print_ast_rec(root->binary->left, depth + length);
+			print_ast_rec(root->binary->right, depth + length);
 			break;
 	}
 }
