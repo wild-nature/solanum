@@ -78,5 +78,9 @@ void reset_line(u32 *line, u32 *column);
 i32 tokenize(char *text, token *tokens);
 char *format_token_type(token_type type);
 char *format_token(char *buffer, token tk);
+void print_tokens(token *tokens, int total_tokens);
+void free_tokens(token *tokens, int total_tokens);
+
+extern char* pretty_tokens[];
 
 #endif

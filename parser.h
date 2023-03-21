@@ -11,12 +11,11 @@ typedef enum {
 	BOOLEAN
 } literal_type;
 
-// TODO: grouping expression "()"
-
 typedef enum {
 	UNARY,
 	BINARY,
 	LITERAL,
+	GROUPING,
 } expr_type;
 
 typedef struct {
@@ -25,8 +24,13 @@ typedef struct {
 		struct unary_expr *unary;
 		struct binary_expr *binary;
 		struct literal_expr *literal;
+		struct group_expr *grouping;
 	};
 } expr;
+
+typedef struct group_expr {
+	expr *inner;
+} group_expr;
 
 typedef struct binary_expr {
 	token_type op; // operator
@@ -49,11 +53,13 @@ typedef struct literal_expr {
 	};
 } literal_expr;
 
+group_expr *new_group(expr *expr);
 unary_expr *new_unary(token_type op, expr *expr);
 binary_expr *new_binary(token_type op, expr *left, expr *right);
 literal_expr *new_literal(literal_type type, void *value);
 expr *new_expr(expr_type type, void* wrapped_expr);
 
+void free_group(group_expr *ge);
 void free_unary(unary_expr *expr);
 void free_binary(binary_expr *expr);
 void free_literal(literal_expr *expr);

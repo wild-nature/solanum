@@ -30,15 +30,10 @@ int main() {
 	int total_tokens = tokenize(text, tokens);
 	free(text);
 
-	for (i32 i = 0; i < total_tokens; i++) {
-		char *pretty_token = malloc(1000);
-		format_token(pretty_token, tokens[i]);
-		printf("%s\n", pretty_token);
-		free(pretty_token);
-	}
+	print_tokens(tokens, total_tokens);
 
 	expr *ast = parse(tokens, total_tokens);
-	free(tokens);
+	free_tokens(tokens, total_tokens);
 
 	print_ast(ast);
 	free(ast);

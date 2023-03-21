@@ -113,7 +113,7 @@ i32 try_parse_float(char *buffer, f64 *number) {
 
 		if (buffer[length + 1] == '.' && isdigit(buffer[length + 2])) {
 			strncat(value, &buffer[length], 1);
-			strncat(value, ".", 1);
+			strncat(value, ".", 2);
 			length += 2;
 			continue;
 		}
@@ -457,4 +457,24 @@ char *format_token(char *buffer, token tk) {
 	strcat(buffer, ">");
 	free(helper);
 	return buffer;
+}
+
+void print_tokens(token *tokens, int total_tokens) {
+	for (i32 i = 0; i < total_tokens; i++) {
+		char *pretty_token = malloc(1000);
+		format_token(pretty_token, tokens[i]);
+		printf("%s\n", pretty_token);
+		free(pretty_token);
+	}
+}
+
+void free_tokens(token *tokens, int total_tokens) {
+	for (i32 i = 0; i < total_tokens; i++) {
+		token t = tokens[i];
+		if (t.type == IDENTIFIER || t.type == LITERAL_STRING) {
+			free(t.string);
+		}
+	}
+
+	free(tokens);
 }

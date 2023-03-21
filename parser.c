@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "lexer.h"
 
 /*
 	expr => 
@@ -27,9 +28,65 @@
 		| "&&" | "||"
 */
 
+// ------------- expression helpers  ------------- 
 
-// TODO: figure out if it would be nice to make specific enums for binary and
-// unary operators here
+expr *new_expr(expr_type type, void* wrapped_expr) {
+	expr *eexpr = malloc(sizeof(expr));
+	eexpr->type = type;
+
+	switch (type) {
+		case UNARY:
+			eexpr->unary = (unary_expr*)wrapped_expr;
+			break;
+		case BINARY:
+			eexpr->binary = (binary_expr*)wrapped_expr;
+			break;
+		case LITERAL:
+			eexpr->literal = (literal_expr*)wrapped_expr;
+			break;
+		case GROUPING:
+			eexpr->grouping = (group_expr*)wrapped_expr;
+			break;
+	}
+
+	return eexpr;
+}
+
+void free_expr(expr *expr) {
+	switch (expr->type) {
+		case UNARY:
+			free_unary(expr->unary);
+			break;
+		case BINARY:
+			free_binary(expr->binary);
+			break;
+		case LITERAL:
+			free_literal(expr->literal);
+			break;
+		case GROUPING:
+			free_group(expr->grouping);
+			break;
+	}
+
+	free(expr);
+}
+
+// ------------- Unary expression helpers  ------------- 
+
+unary_expr *new_unary(token_type op, expr *expr) {
+	unary_expr *unexpr = malloc(sizeof(unary_expr));
+	unexpr->op = op;
+	unexpr->operand = expr;
+	return unexpr;
+}
+
+void free_unary(unary_expr *expr) {
+	free_expr(expr->operand);
+	free(expr);
+}
+
+// ------------- binary expression helpers  ------------- 
+
 binary_expr *new_binary(token_type op, expr *left, expr *right) {
 	binary_expr *bexpr = malloc(sizeof(binary_expr));
 	bexpr->op = op;
@@ -44,11 +101,12 @@ void free_binary(binary_expr *expr) {
 	free(expr);
 }
 
+// ------------- literal expression helpers  ------------- 
+
 literal_expr *new_literal(literal_type type, void *value) {
-	literal_expr *literal = malloc(sizeof(literal));
+	literal_expr *literal = malloc(sizeof(literal_expr));
 	literal->type = type;
 
-	// TODO: fix warnings caused here
 	switch (type) {
 		case STRING:
 			literal->string = (char*)value;
@@ -67,42 +125,6 @@ literal_expr *new_literal(literal_type type, void *value) {
 	return literal;
 }
 
-expr *new_expr(expr_type type, void* wrapped_expr) {
-	// TODO: fix warnings caused here
-	expr *expr = malloc(sizeof(expr));
-	expr->type = type;
-
-	switch (type) {
-		case UNARY:
-			expr->unary = (unary_expr*)wrapped_expr;
-			break;
-		case BINARY:
-			expr->binary = (binary_expr*)wrapped_expr;
-			break;
-		case LITERAL:
-			expr->literal = (literal_expr*)wrapped_expr;
-			break;
-	}
-
-	return expr;
-}
-
-void free_expr(expr *expr) {
-	switch (expr->type) {
-		case UNARY:
-			free_unary(expr->unary);
-			break;
-		case BINARY:
-			free_binary(expr->binary);
-			break;
-		case LITERAL:
-			free_literal(expr->literal);
-			break;
-	}
-
-	free(expr);
-}
-
 void free_literal(literal_expr *expr) {
 	if (expr->type == STRING) {
 		free(expr->string);
@@ -111,17 +133,20 @@ void free_literal(literal_expr *expr) {
 	free(expr);
 }
 
-unary_expr *new_unary(token_type op, expr *expr) {
-	unary_expr *unexpr = malloc(sizeof(unary_expr));
-	unexpr->op = op;
-	unexpr->operand = expr;
-	return unexpr;
+// ------------- grouping expression helpers  ------------- 
+
+group_expr *new_group(expr *e) {
+	group_expr *ge = malloc(sizeof(group_expr));
+	ge->inner = e;
+	return ge;
 }
 
-void free_unary(unary_expr *expr) {
-	free_expr(expr->operand);
-	free(expr);
+void free_group(group_expr *ge) {
+	free_expr(ge->inner);
+	free(ge);
 }
+
+// -----------------------------------------------------
 
 expr *parse(token *tokens, i32 total_tokens) {
 	i64 a = 10;
@@ -185,16 +210,17 @@ void print_ast_rec(expr* root, int depth) {
 			break;
 
 		case UNARY:
-			// TODO: different type for ast unary operators, for now lets use
-			// this workaround
-			printf("Unary %s\n", "-"); // TODO: print operator
+			printf("Unary %s\n", pretty_tokens[root->unary->op]);
+			print_ast_rec(root->unary->operand, depth + length);
+			break;
+
+		case GROUPING:
+			puts("Grouping");
 			print_ast_rec(root->unary->operand, depth + length);
 			break;
 
 		case BINARY:
-			// TODO: different type for ast binary operators, for now lets use
-			// this workaround
-			printf("Binary %s\n", "+"); // TODO: print operator
+			printf("Binary %s\n", pretty_tokens[root->binary->op]);
 			print_ast_rec(root->binary->left, depth + length);
 			print_ast_rec(root->binary->right, depth + length);
 			break;
